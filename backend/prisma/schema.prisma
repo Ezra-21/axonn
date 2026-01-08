@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model addresses {
+  id          String   @id
+  user_id     String
+  street      String
+  city        String
+  state       String
+  postal_code String
+  country     String   @default("Ethiopia")
+  is_default  Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  orders      orders[]
+}
+
+model cart_items {
+  id         String   @id
+  cart_id    String
+  product_id String
+  quantity   Int      @default(1)
+  created_at DateTime @default(now())
+  updated_at DateTime
+  carts      carts    @relation(fields: [cart_id], references: [id], onDelete: Cascade)
+  products   products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@unique([cart_id, product_id])
+}
+
+model carts {
+  id         String       @id
+  user_id    String       @unique
+  created_at DateTime     @default(now())
+  updated_at DateTime
+  cart_items cart_items[]
+  users      users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model categories {
+  id               String       @id
+  name             String       @unique
+  slug             String       @unique
+  description      String?
+  image            String?
+  parent_id        String?
+  is_active        Boolean      @default(true)
+  created_at       DateTime     @default(now())
+  updated_at       DateTime
+  categories       categories?  @relation("categoriesTocategories", fields: [parent_id], references: [id])
+  other_categories categories[] @relation("categoriesTocategories")
+  products         products[]
+}
+
+model order_items {
+  id            String   @id
+  order_id      String
+  product_id    String
+  product_name  String
+  product_image String?
+  quantity      Int
+  unit_price    Decimal  @db.Decimal(10, 2)
+  total_price   Decimal  @db.Decimal(10, 2)
+  created_at    DateTime @default(now())
+  orders        orders   @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  products      products @relation(fields: [product_id], references: [id])
+}
+
+model orders {
+  id               String        @id
+  order_number     String        @unique
+  user_id          String
+  address_id       String?
+  status           OrderStatus   @default(PENDING)
+  payment_status   PaymentStatus @default(PENDING)
+  payment_method   String?
+  subtotal         Decimal       @db.Decimal(10, 2)
+  tax              Decimal       @default(0) @db.Decimal(10, 2)
+  shipping_cost    Decimal       @default(0) @db.Decimal(10, 2)
+  discount         Decimal       @default(0) @db.Decimal(10, 2)
+  total_amount     Decimal       @db.Decimal(10, 2)
+  notes            String?
+  shipping_address Json?
+  created_at       DateTime      @default(now())
+  updated_at       DateTime
+  order_items      order_items[]
+  addresses        addresses?    @relation(fields: [address_id], references: [id])
+  users            users         @relation(fields: [user_id], references: [id])
+  payments         payments?
+
+  @@index([order_number])
+  @@index([status])
+  @@index([user_id])
+}
+
+model payments {
+  id                       String        @id
+  order_id                 String        @unique
+  user_id                  String
+  amount                   Decimal       @db.Decimal(10, 2)
+  currency                 String        @default("usd")
+  payment_method           PaymentMethod
+  status                   PaymentStatus @default(PENDING)
+  stripe_payment_intent_id String?
+  stripe_client_secret     String?
+  stripe_payment_method_id String?
+  transaction_id           String?
+  metadata                 Json?
+  failure_reason           String?
+  paid_at                  DateTime?
+  refunded_at              DateTime?
+  refund_amount            Decimal?      @db.Decimal(10, 2)
+  created_at               DateTime      @default(now())
+  updated_at               DateTime
+  orders                   orders        @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id])
+  @@index([status])
+  @@index([stripe_payment_intent_id])
+  @@index([user_id])
+}
+
+model product_images {
+  id         String   @id
+  product_id String
+  url        String
+  public_id  String?
+  alt_text   String?
+  is_primary Boolean  @default(false)
+  sort_order Int      @default(0)
+  created_at DateTime @default(now())
+  products   products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([product_id])
+}
+
+model products {
+  id                  String           @id
+  name                String
+  slug                String           @unique
+  description         String
+  short_description   String?
+  price               Decimal          @db.Decimal(10, 2)
+  compare_price       Decimal?         @db.Decimal(10, 2)
+  cost_price          Decimal?         @db.Decimal(10, 2)
+  sku                 String?          @unique
+  barcode             String?
+  stock               Int              @default(0)
+  low_stock_threshold Int              @default(5)
+  weight              Decimal?         @db.Decimal(10, 2)
+  dimensions          String?
+  material            String?
+  color               String?
+  category_id         String
+  is_active           Boolean          @default(true)
+  is_featured         Boolean          @default(false)
+  is_new_arrival      Boolean          @default(false)
+  created_at          DateTime         @default(now())
+  updated_at          DateTime
+  cart_items          cart_items[]
+  order_items         order_items[]
+  product_images      product_images[]
+  categories          categories       @relation(fields: [category_id], references: [id])
+  reviews             reviews[]
+  wishlist_items      wishlist_items[]
+
+  @@index([category_id])
+  @@index([is_active, is_featured])
+}
+
+model reviews {
+  id          String   @id
+  user_id     String
+  product_id  String
+  rating      Int
+  title       String?
+  comment     String?
+  is_verified Boolean  @default(false)
+  is_approved Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime
+  products    products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, product_id])
+}
+
+model users {
+  id             String      @id
+  email          String      @unique
+  password       String
+  first_name     String
+  last_name      String
+  phone          String?
+  avatar         String?
+  role           Role        @default(USER)
+  is_active      Boolean     @default(true)
+  email_verified Boolean     @default(false)
+  created_at     DateTime    @default(now())
+  updated_at     DateTime
+  addresses      addresses[]
+  carts          carts?
+  orders         orders[]
+  reviews        reviews[]
+  wishlists      wishlists?
+}
+
+model wishlist_items {
+  id          String    @id
+  wishlist_id String
+  product_id  String
+  created_at  DateTime  @default(now())
+  products    products  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  wishlists   wishlists @relation(fields: [wishlist_id], references: [id], onDelete: Cascade)
+
+  @@unique([wishlist_id, product_id])
+}
+
+model wishlists {
+  id             String           @id
+  user_id        String           @unique
+  created_at     DateTime         @default(now())
+  updated_at     DateTime
+  wishlist_items wishlist_items[]
+  users          users            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  STRIPE
+  CASH_ON_DELIVERY
+  BANK_TRANSFER
+  MOBILE_PAYMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+// schema version 1.0 – initial product + user models
+// indexes added for product slug and user email lookups
+// soft-delete pattern: use deletedAt timestamp
+// category → product: one-to-many relationship
+// order items store snapshot price at purchase time
+// payment status enum: PENDING | PAID | FAILED | REFUNDED
+// review model: rating 1-5, body text, linked to product + user
+// wishlist: many-to-many between users and products
+// address model: supports multiple shipping addresses per user
+
+// product slug must be globally unique
+
+// product stock tracked as integer units
+
+// featured products flag for homepage display
+
+// cart items expire after 7 days of inactivity
+
+// order status flow: PENDING → PROCESSING → SHIPPED → DELIVERED
+
+// shipping address embedded as JSON on order model
+
+// discount code model: supports percentage and flat discounts
+
+// stripePaymentIntentId stored for idempotency checks
+
+// seeder creates 5 categories, 40 products, 3 users
+
+// admin audit log: action, resource, resourceId, performedAt
+
+// notification model: type, message, read status, userId
+
+// full-text search index on product name and description
