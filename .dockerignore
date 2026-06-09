@@ -1,0 +1,17 @@
+**/node_modules
+**/.next
+**/npm-debug.log
+.git
+.gitignore
+**/.env
+**/.env.local
+**/.env.*.local
+**/coverage
+**/.nyc_output
+**/.DS_Store
+**/tests
+backend/docker
+backend/uploads/*
+!backend/uploads/.gitkeep
+**/*.md
+!**/README.md
